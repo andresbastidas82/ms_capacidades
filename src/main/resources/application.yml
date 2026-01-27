@@ -11,3 +11,7 @@ spring:
     init:
       mode: always
 
+services:
+  technology:
+    base-url: http://localhost:8090/api/v1
+
