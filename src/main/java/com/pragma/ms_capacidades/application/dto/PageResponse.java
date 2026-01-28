@@ -1,8 +1,8 @@
 package com.pragma.ms_capacidades.application.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.pragma.ms_capacidades.domain.model.Technology;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -14,12 +14,11 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class CapacityResponse {
-    private Long id;
-    private String name;
-    private String description;
-    private List<Long> technologyIds;
+@Builder
+public class PageResponse<T> {
 
-    private List<Technology> technologies;
-    private Integer technologyCount;
+    private int page;
+    private int size;
+    private long totalElements;
+    private List<T> content;
 }
