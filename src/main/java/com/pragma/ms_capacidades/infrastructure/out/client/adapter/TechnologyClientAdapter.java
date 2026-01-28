@@ -1,13 +1,16 @@
 package com.pragma.ms_capacidades.infrastructure.out.client.adapter;
 
+import com.pragma.ms_capacidades.infrastructure.input.rest.dto.TechnologyResponse;
 import com.pragma.ms_capacidades.infrastructure.out.client.TechnologyClientPort;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class TechnologyClientAdapter implements TechnologyClientPort {
@@ -25,5 +28,19 @@ public class TechnologyClientAdapter implements TechnologyClientPort {
                 .bodyValue(ids)
                 .retrieve()
                 .bodyToMono(Boolean.class);
+    }
+
+    @Override
+    public Flux<TechnologyResponse> getTechnologiesByIds(List<Long> ids) {
+        String idsParam = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
+        return webClient.get()
+                .uri(uriBuilder ->
+                        uriBuilder
+                                .path("/technology/byIds")
+                                .queryParam("ids", idsParam)
+                                .build()
+                )
+                .retrieve()
+                .bodyToFlux(TechnologyResponse.class);
     }
 }

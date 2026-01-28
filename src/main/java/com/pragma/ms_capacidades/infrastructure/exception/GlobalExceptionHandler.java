@@ -54,6 +54,18 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, error);
     }
 
+    @ExceptionHandler(InvalidSortFieldException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleTechnologyAlreadyExists(
+            InvalidSortFieldException ex) {
+
+        ErrorResponse error = ErrorResponse.builder()
+                .code(HttpStatus.BAD_REQUEST.value())
+                .errors(List.of(ex.getMessage()))
+                .timestamp(LocalDateTime.now()).build();
+
+        return buildResponse(HttpStatus.BAD_REQUEST, error);
+    }
+
     private Mono<ResponseEntity<ErrorResponse>> buildResponse(HttpStatus status, ErrorResponse error) {
         return Mono.just(ResponseEntity
                 .status(status)

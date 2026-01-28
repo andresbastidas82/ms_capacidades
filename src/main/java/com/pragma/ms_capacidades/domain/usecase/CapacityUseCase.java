@@ -4,10 +4,12 @@ import com.pragma.ms_capacidades.domain.api.ICapacityServicePort;
 import com.pragma.ms_capacidades.domain.exception.CapacityAlreadyExistsException;
 import com.pragma.ms_capacidades.domain.exception.InvalidCapacityException;
 import com.pragma.ms_capacidades.domain.model.Capacity;
+import com.pragma.ms_capacidades.domain.model.Technology;
 import com.pragma.ms_capacidades.domain.spi.ICapacityPersistencePort;
 import com.pragma.ms_capacidades.infrastructure.out.client.TechnologyClientPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -36,6 +38,32 @@ public class CapacityUseCase implements ICapacityServicePort {
                     }
                     return capacityPersistencePort.save(capacity);
                 });
+    }
+
+    @Override
+    public Flux<Capacity> getCapacities(int page, int size, String sortBy, String direction) {
+        return capacityPersistencePort
+                .findAllPaged(page, size, sortBy, direction)
+                .flatMap(capacity ->
+                    capacityPersistencePort
+                        .findTechnologyIdsByCapacityId(capacity.getId())
+                        .collectList()
+                        .flatMap(technologyIds ->
+                            technologyClientPort.getTechnologiesByIds(technologyIds)
+                            .map(item -> new Technology(item.getId(), item.getName()))
+                            .collectList()
+                            .map(technologies -> {
+                                capacity.setTechnologies(technologies);
+                                capacity.setTechnologyCount(technologies.size());
+                                return capacity;
+                            })
+                        )
+                );
+    }
+
+    @Override
+    public Mono<Long> count() {
+        return capacityPersistencePort.count();
     }
 
     private Mono<Void> validateBusinessRules(Capacity capacity) {

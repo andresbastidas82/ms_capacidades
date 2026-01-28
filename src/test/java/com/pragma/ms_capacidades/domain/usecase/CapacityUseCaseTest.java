@@ -39,7 +39,7 @@ class CapacityUseCaseTest {
     void save_WhenAllRulesMet_ShouldReturnCapacity() {
         // Arrange
         List<Long> techIds = Arrays.asList(1L, 2L, 3L);
-        Capacity capacity = new Capacity(null, "Fullstack Java", "Descripción", techIds);
+        Capacity capacity = new Capacity(null, "Fullstack Java", "Descripción", techIds, null, null);
 
         when(technologyClientPort.existAllByIds(techIds)).thenReturn(Mono.just(true));
         when(capacityPersistencePort.existsByName(capacity.getName())).thenReturn(Mono.just(false));
@@ -62,7 +62,7 @@ class CapacityUseCaseTest {
     @DisplayName("Save should fail when technology list is null or empty")
     void save_WhenTechListIsNull_ShouldThrowException() {
         // Arrange
-        Capacity capacity = new Capacity(null, "Name", "Desc", null);
+        Capacity capacity = new Capacity(null, "Name", "Desc", null, null, null);
 
         // Act
         Mono<Capacity> result = capacityUseCase.save(capacity);
@@ -80,7 +80,7 @@ class CapacityUseCaseTest {
     void save_WhenTechListHasLessThan3_ShouldThrowException() {
         // Arrange
         List<Long> techIds = Arrays.asList(1L, 2L);
-        Capacity capacity = new Capacity(null, "Name", "Desc", techIds);
+        Capacity capacity = new Capacity(null, "Name", "Desc", techIds, null, null);
 
         // Act
         Mono<Capacity> result = capacityUseCase.save(capacity);
@@ -96,7 +96,7 @@ class CapacityUseCaseTest {
     void save_WhenTechListHasMoreThan20_ShouldThrowException() {
         // Arrange
         List<Long> techIds = LongStream.rangeClosed(1, 21).boxed().collect(Collectors.toList());
-        Capacity capacity = new Capacity(null, "Name", "Desc", techIds);
+        Capacity capacity = new Capacity(null, "Name", "Desc", techIds, null, null);
 
         // Act
         Mono<Capacity> result = capacityUseCase.save(capacity);
@@ -112,7 +112,7 @@ class CapacityUseCaseTest {
     void save_WhenTechListHasDuplicates_ShouldThrowException() {
         // Arrange
         List<Long> techIds = Arrays.asList(1L, 2L, 1L); // 1L repetido
-        Capacity capacity = new Capacity(null, "Name", "Desc", techIds);
+        Capacity capacity = new Capacity(null, "Name", "Desc", techIds, null, null);
 
         // Act
         Mono<Capacity> result = capacityUseCase.save(capacity);
@@ -128,7 +128,7 @@ class CapacityUseCaseTest {
     void save_WhenTechsDoNotExist_ShouldThrowException() {
         // Arrange
         List<Long> techIds = Arrays.asList(1L, 2L, 3L);
-        Capacity capacity = new Capacity(null, "Name", "Desc", techIds);
+        Capacity capacity = new Capacity(null, "Name", "Desc", techIds, null, null);
 
         when(technologyClientPort.existAllByIds(techIds)).thenReturn(Mono.just(false));
 
@@ -149,7 +149,7 @@ class CapacityUseCaseTest {
     void save_WhenCapacityNameExists_ShouldThrowException() {
         // Arrange
         List<Long> techIds = Arrays.asList(1L, 2L, 3L);
-        Capacity capacity = new Capacity(null, "Existing Name", "Desc", techIds);
+        Capacity capacity = new Capacity(null, "Existing Name", "Desc", techIds, null, null);
 
         when(technologyClientPort.existAllByIds(techIds)).thenReturn(Mono.just(true));
         when(capacityPersistencePort.existsByName(capacity.getName())).thenReturn(Mono.just(true));
