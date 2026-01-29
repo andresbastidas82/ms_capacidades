@@ -1,22 +1,24 @@
 package com.pragma.ms_capacidades.domain.usecase;
 
 import com.pragma.ms_capacidades.domain.api.ICapacityServicePort;
+import com.pragma.ms_capacidades.domain.exception.BadRequestException;
 import com.pragma.ms_capacidades.domain.exception.CapacityAlreadyExistsException;
-import com.pragma.ms_capacidades.domain.exception.InvalidCapacityException;
 import com.pragma.ms_capacidades.domain.model.Capacity;
 import com.pragma.ms_capacidades.domain.model.Technology;
 import com.pragma.ms_capacidades.domain.spi.ICapacityPersistencePort;
-import com.pragma.ms_capacidades.infrastructure.out.client.TechnologyClientPort;
+import com.pragma.ms_capacidades.domain.spi.TechnologyClientPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.pragma.ms_capacidades.domain.utils.Constants.CAPACITY_ALREADY_EXISTS;
-import static com.pragma.ms_capacidades.domain.utils.Constants.MAX_20_TECH;
-import static com.pragma.ms_capacidades.domain.utils.Constants.MIN_3_TECH;
+import static com.pragma.ms_capacidades.domain.utils.Constants.DESCRIPTION_IS_REQUIRED;
+import static com.pragma.ms_capacidades.domain.utils.Constants.INVALID_TECH_SIZE;
+import static com.pragma.ms_capacidades.domain.utils.Constants.NAME_IS_REQUIRED;
 import static com.pragma.ms_capacidades.domain.utils.Constants.REPEATED_TECH;
 import static com.pragma.ms_capacidades.domain.utils.Constants.TECHNOLOGY_NOT_EXIST;
 
@@ -44,21 +46,7 @@ public class CapacityUseCase implements ICapacityServicePort {
     public Flux<Capacity> getCapacities(int page, int size, String sortBy, String direction) {
         return capacityPersistencePort
                 .findAllPaged(page, size, sortBy, direction)
-                .flatMap(capacity ->
-                    capacityPersistencePort
-                        .findTechnologyIdsByCapacityId(capacity.getId())
-                        .collectList()
-                        .flatMap(technologyIds ->
-                            technologyClientPort.getTechnologiesByIds(technologyIds)
-                            .map(item -> new Technology(item.getId(), item.getName()))
-                            .collectList()
-                            .map(technologies -> {
-                                capacity.setTechnologies(technologies);
-                                capacity.setTechnologyCount(technologies.size());
-                                return capacity;
-                            })
-                        )
-                );
+                .flatMap(this::getCapacityWhitTechnologies);
     }
 
     @Override
@@ -66,28 +54,54 @@ public class CapacityUseCase implements ICapacityServicePort {
         return capacityPersistencePort.count();
     }
 
-    private Mono<Void> validateBusinessRules(Capacity capacity) {
+    @Override
+    public Flux<Capacity> getCapacitiesByIds(List<Long> ids) {
+        return capacityPersistencePort.findCapacitiesByIds(ids)
+                .flatMap(this::getCapacityWhitTechnologies);
+    }
 
+    private Mono<Capacity> getCapacityWhitTechnologies(Capacity capacity) {
+        return capacityPersistencePort
+                .findTechnologyIdsByCapacityId(capacity.getId())
+                .collectList()
+                .flatMap(technologyIds ->
+                    technologyClientPort.getTechnologiesByIds(technologyIds)
+                        .map(item -> new Technology(item.getId(), item.getName()))
+                        .collectList()
+                        .map(technologies -> {
+                            capacity.setTechnologies(technologies);
+                            capacity.setTechnologyCount(technologies.size());
+                            return capacity;
+                        })
+                );
+    }
+
+    private Mono<Capacity> validateBusinessRules(Capacity capacity) {
+        List<String> errors = new ArrayList<>();
         List<Long> techs = capacity.getTechnologyIds();
 
-        if (techs == null || techs.size() < 3) {
-            return Mono.error(new InvalidCapacityException(MIN_3_TECH));
+        if(capacity.getName() == null || capacity.getName().isEmpty()) {
+            errors.add(NAME_IS_REQUIRED);
         }
-
-        if (techs.size() > 20) {
-            return Mono.error(new InvalidCapacityException(MAX_20_TECH));
+        if(capacity.getDescription() == null || capacity.getDescription().isEmpty()) {
+            errors.add(DESCRIPTION_IS_REQUIRED);
         }
-
-        if (techs.size() != techs.stream().distinct().count()) {
-            return Mono.error(new InvalidCapacityException(REPEATED_TECH));
+        if (techs == null || techs.isEmpty() || techs.size() < 3 || techs.size() > 20) {
+            errors.add(INVALID_TECH_SIZE);
+        }
+        if (techs != null && (techs.size() != techs.stream().distinct().count())) {
+            errors.add(REPEATED_TECH);
         }
 
         return technologyClientPort.existAllByIds(techs)
                 .flatMap(exists -> {
-                    if (!exists) {
-                        return Mono.error(new InvalidCapacityException(TECHNOLOGY_NOT_EXIST));
+                    if (Boolean.FALSE.equals(exists)) {
+                        errors.add(TECHNOLOGY_NOT_EXIST);
                     }
-                    return Mono.empty();
+                    if (!errors.isEmpty()) {
+                        return Mono.error(new BadRequestException(String.join("|", errors)));
+                    }
+                    return Mono.just(capacity);
                 });
     }
 }

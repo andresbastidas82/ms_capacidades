@@ -3,7 +3,10 @@ package com.pragma.ms_capacidades.infrastructure.out.r2dbc.repository;
 import com.pragma.ms_capacidades.infrastructure.out.r2dbc.entity.CapacityEntity;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 public interface ICapacityR2dbcRepository extends ReactiveCrudRepository<CapacityEntity, Long> {
 
@@ -11,6 +14,8 @@ public interface ICapacityR2dbcRepository extends ReactiveCrudRepository<Capacit
 
     @Query("SELECT COUNT(*) FROM capacities")
     Mono<Long> countAll();
+
+    Flux<CapacityEntity> findByIdIn(List<Long> ids);
 
     /*@Query("""
         SELECT 

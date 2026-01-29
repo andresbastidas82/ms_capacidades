@@ -4,6 +4,8 @@ import com.pragma.ms_capacidades.domain.model.Capacity;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 public interface ICapacityPersistencePort {
     Mono<Capacity> save(Capacity capacity);
 
@@ -15,4 +17,5 @@ public interface ICapacityPersistencePort {
 
     Flux<Long> findTechnologyIdsByCapacityId(Long capacityId);
 
+    Flux<Capacity> findCapacitiesByIds(List<Long> ids);
 }

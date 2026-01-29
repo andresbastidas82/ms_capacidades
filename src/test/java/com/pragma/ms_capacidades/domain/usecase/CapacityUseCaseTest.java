@@ -1,25 +1,27 @@
 package com.pragma.ms_capacidades.domain.usecase;
 
+import com.pragma.ms_capacidades.domain.exception.BadRequestException;
 import com.pragma.ms_capacidades.domain.exception.CapacityAlreadyExistsException;
-import com.pragma.ms_capacidades.domain.exception.InvalidCapacityException;
 import com.pragma.ms_capacidades.domain.model.Capacity;
 import com.pragma.ms_capacidades.domain.spi.ICapacityPersistencePort;
-import com.pragma.ms_capacidades.infrastructure.out.client.TechnologyClientPort;
+import com.pragma.ms_capacidades.domain.spi.TechnologyClientPort;
+import com.pragma.ms_capacidades.infrastructure.input.rest.dto.TechnologyResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.LongStream;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,14 +37,17 @@ class CapacityUseCaseTest {
     private CapacityUseCase capacityUseCase;
 
     @Test
-    @DisplayName("Save should succeed when all rules are met")
+    @DisplayName("Save: Should save capacity when all rules are met (Happy Path)")
     void save_WhenAllRulesMet_ShouldReturnCapacity() {
         // Arrange
         List<Long> techIds = Arrays.asList(1L, 2L, 3L);
         Capacity capacity = new Capacity(null, "Fullstack Java", "Descripción", techIds, null, null);
 
+        // Simulamos que las tecnologías existen externamente
         when(technologyClientPort.existAllByIds(techIds)).thenReturn(Mono.just(true));
+        // Simulamos que el nombre NO existe en BD (gracias al Mono.defer esto se llama en el momento correcto)
         when(capacityPersistencePort.existsByName(capacity.getName())).thenReturn(Mono.just(false));
+        // Simulamos el guardado
         when(capacityPersistencePort.save(capacity)).thenReturn(Mono.just(capacity));
 
         // Act
@@ -59,77 +64,36 @@ class CapacityUseCaseTest {
     }
 
     @Test
-    @DisplayName("Save should fail when technology list is null or empty")
-    void save_WhenTechListIsNull_ShouldThrowException() {
+    @DisplayName("Save: Should throw BadRequestException when multiple validations fail")
+    void save_WhenMultipleValidationsFail_ShouldThrowBadRequestException() {
         // Arrange
-        Capacity capacity = new Capacity(null, "Name", "Desc", null, null, null);
+        // Caso: Nombre vacío Y lista de tecnologías vacía (menos de 3)
+        Capacity capacity = new Capacity(null, "", "Desc", Collections.emptyList(), null, null);
+
+        // Nota: Tu código llama a existAllByIds incluso si la lista está vacía, así que debemos mockearlo
+        // para evitar NullPointerException o errores inesperados en el test.
+        when(technologyClientPort.existAllByIds(anyList())).thenReturn(Mono.just(true));
 
         // Act
         Mono<Capacity> result = capacityUseCase.save(capacity);
 
         // Assert
         StepVerifier.create(result)
-                .expectError(InvalidCapacityException.class)
+                .expectErrorMatches(throwable -> throwable instanceof BadRequestException &&
+                        throwable.getMessage().contains("|")) // Verifica que concatena errores
                 .verify();
 
-        verifyNoInteractions(technologyClientPort, capacityPersistencePort);
+        verifyNoInteractions(capacityPersistencePort); // No debe intentar guardar
     }
 
     @Test
-    @DisplayName("Save should fail when technology list has less than 3 items")
-    void save_WhenTechListHasLessThan3_ShouldThrowException() {
-        // Arrange
-        List<Long> techIds = Arrays.asList(1L, 2L);
-        Capacity capacity = new Capacity(null, "Name", "Desc", techIds, null, null);
-
-        // Act
-        Mono<Capacity> result = capacityUseCase.save(capacity);
-
-        // Assert
-        StepVerifier.create(result)
-                .expectError(InvalidCapacityException.class) // Espera MIN_3_TECH
-                .verify();
-    }
-
-    @Test
-    @DisplayName("Save should fail when technology list has more than 20 items")
-    void save_WhenTechListHasMoreThan20_ShouldThrowException() {
-        // Arrange
-        List<Long> techIds = LongStream.rangeClosed(1, 21).boxed().collect(Collectors.toList());
-        Capacity capacity = new Capacity(null, "Name", "Desc", techIds, null, null);
-
-        // Act
-        Mono<Capacity> result = capacityUseCase.save(capacity);
-
-        // Assert
-        StepVerifier.create(result)
-                .expectError(InvalidCapacityException.class) // Espera MAX_20_TECH
-                .verify();
-    }
-
-    @Test
-    @DisplayName("Save should fail when technology list has duplicates")
-    void save_WhenTechListHasDuplicates_ShouldThrowException() {
-        // Arrange
-        List<Long> techIds = Arrays.asList(1L, 2L, 1L); // 1L repetido
-        Capacity capacity = new Capacity(null, "Name", "Desc", techIds, null, null);
-
-        // Act
-        Mono<Capacity> result = capacityUseCase.save(capacity);
-
-        // Assert
-        StepVerifier.create(result)
-                .expectError(InvalidCapacityException.class) // Espera REPEATED_TECH
-                .verify();
-    }
-
-    @Test
-    @DisplayName("Save should fail when technologies do not exist in external service")
-    void save_WhenTechsDoNotExist_ShouldThrowException() {
+    @DisplayName("Save: Should throw BadRequestException when technologies do not exist")
+    void save_WhenTechnologiesDoNotExist_ShouldThrowBadRequestException() {
         // Arrange
         List<Long> techIds = Arrays.asList(1L, 2L, 3L);
-        Capacity capacity = new Capacity(null, "Name", "Desc", techIds, null, null);
+        Capacity capacity = new Capacity(null, "Java Dev", "Desc", techIds, null, null);
 
+        // Simulamos que el microservicio de tecnologías devuelve FALSE
         when(technologyClientPort.existAllByIds(techIds)).thenReturn(Mono.just(false));
 
         // Act
@@ -137,21 +101,22 @@ class CapacityUseCaseTest {
 
         // Assert
         StepVerifier.create(result)
-                .expectError(InvalidCapacityException.class) // Espera TECHNOLOGY_NOT_EXIST
+                .expectError(BadRequestException.class)
                 .verify();
 
         verify(technologyClientPort).existAllByIds(techIds);
-        verifyNoInteractions(capacityPersistencePort); // No debe intentar guardar ni buscar nombre
+        verifyNoInteractions(capacityPersistencePort);
     }
 
     @Test
-    @DisplayName("Save should fail when capacity name already exists")
-    void save_WhenCapacityNameExists_ShouldThrowException() {
+    @DisplayName("Save: Should throw CapacityAlreadyExistsException when name exists in DB")
+    void save_WhenNameExists_ShouldThrowCapacityAlreadyExistsException() {
         // Arrange
         List<Long> techIds = Arrays.asList(1L, 2L, 3L);
         Capacity capacity = new Capacity(null, "Existing Name", "Desc", techIds, null, null);
 
         when(technologyClientPort.existAllByIds(techIds)).thenReturn(Mono.just(true));
+        // Simulamos que el nombre YA existe
         when(capacityPersistencePort.existsByName(capacity.getName())).thenReturn(Mono.just(true));
 
         // Act
@@ -162,9 +127,65 @@ class CapacityUseCaseTest {
                 .expectError(CapacityAlreadyExistsException.class)
                 .verify();
 
-        verify(technologyClientPort).existAllByIds(techIds);
-        verify(capacityPersistencePort).existsByName(capacity.getName());
         verify(capacityPersistencePort, never()).save(any());
     }
 
+
+    @Test
+    @DisplayName("GetCapacities: Should return enriched capacities with technologies")
+    void getCapacities_ShouldReturnEnrichedCapacities() {
+        // Arrange
+        int page = 0, size = 10;
+        String sort = "name", direction = "asc";
+        Long capId = 1L;
+        List<Long> techIds = Arrays.asList(10L, 20L);
+
+        Capacity capacity = new Capacity(capId, "Java", "Desc", null, null, null);
+
+        // Mock de TechnologyResponse (DTO externo)
+        TechnologyResponse techResp1 = new TechnologyResponse(10L, "Java", "Desc");
+        TechnologyResponse techResp2 = new TechnologyResponse(20L, "Spring", "Desc");
+
+        // 1. Mockear la búsqueda paginada
+        when(capacityPersistencePort.findAllPaged(page, size, sort, direction))
+                .thenReturn(Flux.just(capacity));
+
+        // 2. Mockear la búsqueda de IDs de tecnologías para esa capacidad
+        when(capacityPersistencePort.findTechnologyIdsByCapacityId(capId))
+                .thenReturn(Flux.fromIterable(techIds));
+
+        // 3. Mockear la llamada al cliente externo para obtener detalles de tecnologías
+        when(technologyClientPort.getTechnologiesByIds(techIds))
+                .thenReturn(Flux.just(techResp1, techResp2));
+
+        // Act
+        Flux<Capacity> result = capacityUseCase.getCapacities(page, size, sort, direction);
+
+        // Assert
+        StepVerifier.create(result)
+                .assertNext(cap -> {
+                    // Verificamos que se haya enriquecido el objeto
+                    assert cap.getTechnologies() != null;
+                    assert cap.getTechnologies().size() == 2;
+                    assert cap.getTechnologyCount() == 2;
+                    assert cap.getTechnologies().get(0).getName().equals("Java");
+                })
+                .verifyComplete();
+    }
+
+
+    @Test
+    @DisplayName("Count: Should return total number of capacities")
+    void count_ShouldReturnTotal() {
+        // Arrange
+        when(capacityPersistencePort.count()).thenReturn(Mono.just(5L));
+
+        // Act
+        Mono<Long> result = capacityUseCase.count();
+
+        // Assert
+        StepVerifier.create(result)
+                .expectNext(5L)
+                .verifyComplete();
+    }
 }

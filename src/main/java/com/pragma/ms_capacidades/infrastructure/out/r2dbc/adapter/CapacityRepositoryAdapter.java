@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 @Component
 public class CapacityRepositoryAdapter implements ICapacityPersistencePort {
 
@@ -90,6 +92,11 @@ public class CapacityRepositoryAdapter implements ICapacityPersistencePort {
     @Override
     public Flux<Long> findTechnologyIdsByCapacityId(Long capacityId) {
         return capacityTechnologyRepository.findTechnologyIdsByCapacityId(capacityId);
+    }
+
+    @Override
+    public Flux<Capacity> findCapacitiesByIds(List<Long> ids) {
+        return capacityR2dbcRepository.findByIdIn(ids).map(capacityEntityMapper::toModel);
     }
 
     private String resolveOrderBy(String sortBy, String direction) {

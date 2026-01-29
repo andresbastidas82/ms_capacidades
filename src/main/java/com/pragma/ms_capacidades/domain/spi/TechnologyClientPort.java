@@ -1,4 +1,4 @@
-package com.pragma.ms_capacidades.infrastructure.out.client;
+package com.pragma.ms_capacidades.domain.spi;
 
 import com.pragma.ms_capacidades.infrastructure.input.rest.dto.TechnologyResponse;
 import reactor.core.publisher.Flux;
