@@ -1,7 +1,7 @@
 package com.pragma.ms_capacidades.infrastructure.out.client.adapter;
 
 import com.pragma.ms_capacidades.infrastructure.input.rest.dto.TechnologyResponse;
-import com.pragma.ms_capacidades.infrastructure.out.client.TechnologyClientPort;
+import com.pragma.ms_capacidades.domain.spi.TechnologyClientPort;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;

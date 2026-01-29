@@ -1,5 +1,6 @@
 package com.pragma.ms_capacidades.infrastructure.exception;
 
+import com.pragma.ms_capacidades.domain.exception.BadRequestException;
 import com.pragma.ms_capacidades.domain.exception.CapacityAlreadyExistsException;
 import com.pragma.ms_capacidades.domain.exception.InvalidCapacityException;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @RestControllerAdvice
@@ -61,6 +63,17 @@ public class GlobalExceptionHandler {
         ErrorResponse error = ErrorResponse.builder()
                 .code(HttpStatus.BAD_REQUEST.value())
                 .errors(List.of(ex.getMessage()))
+                .timestamp(LocalDateTime.now()).build();
+
+        return buildResponse(HttpStatus.BAD_REQUEST, error);
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleTechnologyAlreadyExists(
+            BadRequestException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .code(HttpStatus.BAD_REQUEST.value())
+                .errors(Arrays.asList(ex.getMessage().split("\\|")))
                 .timestamp(LocalDateTime.now()).build();
 
         return buildResponse(HttpStatus.BAD_REQUEST, error);

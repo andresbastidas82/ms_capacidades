@@ -8,7 +8,10 @@ import com.pragma.ms_capacidades.application.mapper.ICapacityRequestMapper;
 import com.pragma.ms_capacidades.domain.api.ICapacityServicePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +43,12 @@ public class CapacityHelper implements ICapacityHelper {
                                 .build()
                         )
                 );
+    }
+
+    @Override
+    public Flux<CapacityResponse> getCapacitiesByIds(List<Long> ids) {
+        return capacityServicePort.getCapacitiesByIds(ids)
+                .map(capacityRequestMapper::toCapacityResponse);
     }
 
 
