@@ -15,4 +15,7 @@ public interface ICapacityHelper {
     Mono<PageResponse<CapacityResponse>> getCapacities(int page, int size, String sortBy, String direction);
 
     Flux<CapacityResponse> getCapacitiesByIds(List<Long> ids);
+
+    Mono<Boolean> deleteCapacities(List<Long> ids);
+
 }

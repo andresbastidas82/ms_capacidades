@@ -60,6 +60,24 @@ public class CapacityUseCase implements ICapacityServicePort {
                 .flatMap(this::getCapacityWhitTechnologies);
     }
 
+    @Override
+    public Mono<Boolean> deleteCapacities(List<Long> ids) {
+        return capacityPersistencePort.findTechnologiesNotReferencedInOtherCapacities(ids)
+                .collectList()
+                .flatMap(technologyIds -> {
+                    if (!technologyIds.isEmpty()) {
+                        return technologyClientPort.deleteTechnolgies(technologyIds);
+                    }
+                    return Mono.just(true);
+                })
+                .flatMap(res -> {
+                        if(Boolean.TRUE.equals(res)) {
+                            return capacityPersistencePort.deleteCapacities(ids);
+                        }
+                        return Mono.just(false);
+                });
+    }
+
     private Mono<Capacity> getCapacityWhitTechnologies(Capacity capacity) {
         return capacityPersistencePort
                 .findTechnologyIdsByCapacityId(capacity.getId())

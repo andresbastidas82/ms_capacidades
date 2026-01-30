@@ -17,6 +17,7 @@ public class CapacityRouter {
 
         return route(POST("/api/v1/capacity"), handler::createCapacity)
                 .andRoute(GET("/api/v1/capacity"), handler::listCapacities)
-                .andRoute(GET("/api/v1/capacity/byIds"), handler::getCapacitiesByIds);
+                .andRoute(GET("/api/v1/capacity/byIds"), handler::getCapacitiesByIds)
+                .andRoute(DELETE("/api/v1/capacity"), handler::deleteCapacities);
     }
 }

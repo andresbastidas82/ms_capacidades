@@ -18,4 +18,8 @@ public interface ICapacityPersistencePort {
     Flux<Long> findTechnologyIdsByCapacityId(Long capacityId);
 
     Flux<Capacity> findCapacitiesByIds(List<Long> ids);
+
+    Mono<Boolean> deleteCapacities(List<Long> ids);
+
+    Flux<Long> findTechnologiesNotReferencedInOtherCapacities(List<Long> capacitiesIds);
 }
