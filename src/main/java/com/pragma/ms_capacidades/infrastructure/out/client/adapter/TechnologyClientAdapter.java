@@ -43,4 +43,20 @@ public class TechnologyClientAdapter implements TechnologyClientPort {
                 .retrieve()
                 .bodyToFlux(TechnologyResponse.class);
     }
+
+    @Override
+    public Mono<Boolean> deleteTechnolgies(List<Long> ids) {
+        String idsParam = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
+        return webClient.delete()
+                .uri(uriBuilder ->
+                        uriBuilder
+                                .path("/technology")
+                                .queryParam("ids", idsParam)
+                                .build()
+                )
+                .retrieve()
+                .bodyToMono(Boolean.class);
+    }
+
+
 }

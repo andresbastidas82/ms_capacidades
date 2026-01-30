@@ -99,6 +99,20 @@ public class CapacityRepositoryAdapter implements ICapacityPersistencePort {
         return capacityR2dbcRepository.findByIdIn(ids).map(capacityEntityMapper::toModel);
     }
 
+    @Transactional
+    @Override
+    public Mono<Boolean> deleteCapacities(List<Long> ids) {
+        return capacityTechnologyRepository.deleteAllByCapacityIdIn(ids)
+                .then(capacityR2dbcRepository.deleteAllById(ids))
+                .thenReturn(true)
+                .onErrorResume(Mono::error);
+    }
+
+    @Override
+    public Flux<Long> findTechnologiesNotReferencedInOtherCapacities(List<Long> capacitiesIds) {
+        return capacityTechnologyRepository.findTechnologiesNotReferencedInOtherCapacities(capacitiesIds);
+    }
+
     private String resolveOrderBy(String sortBy, String direction) {
         String column = switch (sortBy.toLowerCase()) {
             case "name" -> "c.name";

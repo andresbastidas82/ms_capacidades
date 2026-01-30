@@ -15,4 +15,6 @@ public interface ICapacityServicePort {
 
     Flux<Capacity> getCapacitiesByIds(List<Long> ids);
 
+     Mono<Boolean> deleteCapacities(List<Long> ids);
+
 }

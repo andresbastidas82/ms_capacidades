@@ -51,5 +51,10 @@ public class CapacityHelper implements ICapacityHelper {
                 .map(capacityRequestMapper::toCapacityResponse);
     }
 
+    @Override
+    public Mono<Boolean> deleteCapacities(List<Long> ids) {
+        return capacityServicePort.deleteCapacities(ids);
+    }
+
 
 }

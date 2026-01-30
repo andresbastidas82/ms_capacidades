@@ -11,4 +11,6 @@ public interface TechnologyClientPort {
     Mono<Boolean> existAllByIds(List<Long> ids);
     Flux<TechnologyResponse> getTechnologiesByIds(List<Long> ids);
 
+    Mono<Boolean> deleteTechnolgies(List<Long> ids);
+
 }

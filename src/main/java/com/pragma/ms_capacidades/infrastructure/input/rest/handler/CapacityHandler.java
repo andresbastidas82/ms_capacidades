@@ -61,4 +61,23 @@ public class CapacityHandler {
                 .body(capacityHelper.getCapacitiesByIds(ids), CapacityResponse.class);
     }
 
+    public Mono<ServerResponse> deleteCapacities(ServerRequest request) {
+        List<Long> ids = request.queryParam("ids")
+                .map(value ->
+                        Arrays.stream(value.split(","))
+                                .map(String::trim)
+                                .map(Long::valueOf)
+                                .toList()
+                )
+                .orElseThrow(() -> new IllegalArgumentException("ids es requerido"));
+
+        return capacityHelper.deleteCapacities(ids)
+                .onErrorReturn(false)
+                .flatMap(result ->
+                        ServerResponse.ok()
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(result)
+                );
+    }
+
 }
