@@ -188,4 +188,137 @@ class CapacityUseCaseTest {
                 .expectNext(5L)
                 .verifyComplete();
     }
+
+
+    @Test
+    @DisplayName("GetCapacitiesByIds: Should return enriched capacities")
+    void getCapacitiesByIds_ShouldReturnEnrichedCapacities() {
+        // Arrange
+        List<Long> ids = Arrays.asList(1L, 2L);
+        Capacity capacity1 = new Capacity(1L, "Cap 1", "Desc 1", null, null, null);
+        Capacity capacity2 = new Capacity(2L, "Cap 2", "Desc 2", null, null, null);
+
+        // Datos para el enriquecimiento (simulando getCapacityWhitTechnologies)
+        List<Long> techIds1 = Arrays.asList(10L);
+        List<Long> techIds2 = Arrays.asList(20L);
+        TechnologyResponse techResp1 = new TechnologyResponse(10L, "Java", "Desc");
+        TechnologyResponse techResp2 = new TechnologyResponse(20L, "Python", "Desc");
+
+        // 1. Mockear la búsqueda de capacidades por IDs
+        when(capacityPersistencePort.findCapacitiesByIds(ids))
+                .thenReturn(Flux.just(capacity1, capacity2));
+
+        // 2. Mockear la búsqueda de IDs de tecnologías (se llama por cada capacidad)
+        when(capacityPersistencePort.findTechnologyIdsByCapacityId(1L)).thenReturn(Flux.fromIterable(techIds1));
+        when(capacityPersistencePort.findTechnologyIdsByCapacityId(2L)).thenReturn(Flux.fromIterable(techIds2));
+
+        // 3. Mockear la llamada al cliente externo
+        when(technologyClientPort.getTechnologiesByIds(techIds1)).thenReturn(Flux.just(techResp1));
+        when(technologyClientPort.getTechnologiesByIds(techIds2)).thenReturn(Flux.just(techResp2));
+
+        // Act
+        Flux<Capacity> result = capacityUseCase.getCapacitiesByIds(ids);
+
+        // Assert
+        StepVerifier.create(result)
+                .assertNext(cap -> {
+                    assert cap.getId().equals(1L);
+                    assert cap.getTechnologies().get(0).getName().equals("Java");
+                })
+                .assertNext(cap -> {
+                    assert cap.getId().equals(2L);
+                    assert cap.getTechnologies().get(0).getName().equals("Python");
+                })
+                .verifyComplete();
+
+        verify(capacityPersistencePort).findCapacitiesByIds(ids);
+    }
+
+// --- TESTS PARA deleteCapacities ---
+
+    @Test
+    @DisplayName("DeleteCapacities: Should delete technologies and capacities when orphans exist")
+    void deleteCapacities_WhenOrphansExist_ShouldDeleteBoth() {
+        // Arrange
+        List<Long> capacityIds = Arrays.asList(1L, 2L);
+        List<Long> orphanedTechIds = Arrays.asList(100L, 101L);
+
+        // 1. Simular que existen tecnologías que quedarían huérfanas
+        when(capacityPersistencePort.findTechnologiesNotReferencedInOtherCapacities(capacityIds))
+                .thenReturn(Flux.fromIterable(orphanedTechIds));
+
+        // 2. Simular el borrado exitoso de esas tecnologías
+        when(technologyClientPort.deleteTechnolgies(orphanedTechIds))
+                .thenReturn(Mono.just(true));
+
+        // 3. Simular el borrado de las capacidades
+        when(capacityPersistencePort.deleteCapacities(capacityIds))
+                .thenReturn(Mono.just(true));
+
+        // Act
+        Mono<Boolean> result = capacityUseCase.deleteCapacities(capacityIds);
+
+        // Assert
+        StepVerifier.create(result)
+                .expectNext(true)
+                .verifyComplete();
+
+        // Verificaciones
+        verify(technologyClientPort).deleteTechnolgies(orphanedTechIds); // Se debió llamar
+        verify(capacityPersistencePort).deleteCapacities(capacityIds);   // Se debió llamar
+    }
+
+    @Test
+    @DisplayName("DeleteCapacities: Should only delete capacities when no orphans exist")
+    void deleteCapacities_WhenNoOrphans_ShouldSkipTechDelete() {
+        // Arrange
+        List<Long> capacityIds = Arrays.asList(1L, 2L);
+
+        // 1. Simular que NO hay tecnologías huérfanas (Flux vacío)
+        when(capacityPersistencePort.findTechnologiesNotReferencedInOtherCapacities(capacityIds))
+                .thenReturn(Flux.empty());
+
+        // 2. Simular el borrado de las capacidades
+        when(capacityPersistencePort.deleteCapacities(capacityIds))
+                .thenReturn(Mono.just(true));
+
+        // Act
+        Mono<Boolean> result = capacityUseCase.deleteCapacities(capacityIds);
+
+        // Assert
+        StepVerifier.create(result)
+                .expectNext(true)
+                .verifyComplete();
+
+        // Verificaciones Clave
+        verify(technologyClientPort, never()).deleteTechnolgies(anyList()); // NO se debió llamar
+        verify(capacityPersistencePort).deleteCapacities(capacityIds);
+    }
+
+    @Test
+    @DisplayName("DeleteCapacities: Should return false if technology deletion fails")
+    void deleteCapacities_WhenTechDeleteFails_ShouldReturnFalse() {
+        // Arrange
+        List<Long> capacityIds = Arrays.asList(1L);
+        List<Long> orphanedTechIds = Arrays.asList(100L);
+
+        // 1. Hay huérfanas
+        when(capacityPersistencePort.findTechnologiesNotReferencedInOtherCapacities(capacityIds))
+                .thenReturn(Flux.fromIterable(orphanedTechIds));
+
+        // 2. El borrado de tecnologías falla (retorna false)
+        when(technologyClientPort.deleteTechnolgies(orphanedTechIds))
+                .thenReturn(Mono.just(false));
+
+        // Act
+        Mono<Boolean> result = capacityUseCase.deleteCapacities(capacityIds);
+
+        // Assert
+        StepVerifier.create(result)
+                .expectNext(false)
+                .verifyComplete();
+
+        // Verificaciones: No se debe intentar borrar las capacidades si falló lo anterior
+        verify(capacityPersistencePort, never()).deleteCapacities(anyList());
+    }
 }
